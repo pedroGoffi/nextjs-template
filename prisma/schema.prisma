@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  PENDING
+}
+
+model User {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  password         String
+  apiKey           String?         @unique
+  stripeCustomerId String?
+  stores           ShopifyStore[]  @relation(name: "UserStores")
+  subscription     Subscription?
+  products         Product[]
+  logs             UserActionLog[]
+  createdAt        DateTime        @default(now())
+}
+
+model UserPreferences {
+  id        String @id @default(uuid())  
+}
+
+model ShopifyStore {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], name: "UserStores")
+  shopName  String   @unique
+  shopUrl   String
+  createdAt DateTime @default(now())
+}
+
+model ShopifyStorePreference {
+  id        String   @id @default(uuid())
+  
+}
+
+model SubscriptionPlan {
+  id            String         @id @default(cuid())
+  name          String // Ex: "Grátis", "Premium"
+  price         Decimal // 0 para planos gratuitos
+  currency      String // Ex: "USD", "BRL"
+  durationDays  Int // Ex: 30 dias
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String             @unique
+  user      User               @relation(fields: [userId], references: [id])
+  planId    String
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id])
+  status    SubscriptionStatus
+  createdAt DateTime           @default(now())
+  expiresAt DateTime
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  shopifyId   String?       @unique
+  name        String
+  price       Decimal
+  currency    String
+  description String?
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  event     String // Ex: "SUBSCRIPTION_CREATED", "PRODUCT_UPDATED"
+  payload   String // JSON com detalhes do evento
+  createdAt DateTime @default(now())
+}
+
+model UserActionLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String // Ex: "Updated Product", "Changed Subscription"
+  createdAt DateTime @default(now())
+}
